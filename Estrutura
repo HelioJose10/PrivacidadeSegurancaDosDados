@@ -1,0 +1,14 @@
+/P2PSecureChat
+   /src
+      /main
+         /java
+            /client
+               Client.java
+            /server
+               Server.java
+            /security
+               EncryptionUtils.java
+   /lib
+   /reports
+      report.pdf
+   pom.xml (caso utilize Maven)
