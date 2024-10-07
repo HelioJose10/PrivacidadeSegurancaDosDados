@@ -1,4 +1,4 @@
-package main.java.client;
+package main.java;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
