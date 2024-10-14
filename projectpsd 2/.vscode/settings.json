@@ -1,0 +1,18 @@
+{
+    "java.home": "/opt/homebrew/Cellar/openjdk@17/17.0.12/libexec/openjdk.jdk/Contents/Home",  // Verifique se este é o caminho correto
+    "java.configuration.update.build": "automatic",
+    "java.import.gradle.enabled": false,
+    "java.import.maven.enabled": true,
+    "java.project.referencedLibraries": [
+        "lib/**/*.jar",
+        "target/**/*.jar"
+    ],
+    "java.errors.incompleteClasspath.severity": "ignore",
+    "editor.suggestSelection": "first",
+    "vsintellicode.modify.editor.suggestSelection": "automaticallyOverrodeDefaultValue",
+    "files.autoSave": "afterDelay",
+    "java.semanticHighlighting.enabled": true,
+    "java.jdt.ls.vmargs": "",
+    "java.import.gradle.jvmArguments": "",
+    "java.configuration.updateBuildConfiguration": "interactive"
+}

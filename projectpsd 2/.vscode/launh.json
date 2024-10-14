@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Launch P2PChatApp",
+            "request": "launch",
+            "mainClass": "com.example.P2PChatApp",
+            "projectName": "projectpsd" 
+        }
+    ]
+}
