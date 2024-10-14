@@ -37,3 +37,18 @@ Contribuições são bem-vindas! Sinta-se à vontade para abrir um issue ou envi
 
 Este projeto está licenciado sob a MIT License.
 
+## Estrutra
+
+projeto/
+│
+├── src/
+│   └── main/
+│       └── java/
+│           ├── Peer.java               // Classe principal
+│           ├── PeerHandler.java         // Classe para tratar a comunicação
+│           ├── PeerGUI.java             // Classe para a interface gráfica
+│           ├── PeerGUIListener.java      // Interface para notificação de mensagens
+│           └── ...                      // Outras classes que você possa ter
+│
+└── bin/                                 // Diretório onde as classes compiladas serão armazenadas
+
