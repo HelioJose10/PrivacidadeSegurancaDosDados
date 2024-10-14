@@ -188,18 +188,27 @@ public class Peer {
                 }
             });
 
-            // Opcional: Iniciar GUIs para peer2 e peer3 em threads separadas
-            
+                        // Iniciar a GUI para peer1
+                        SwingUtilities.invokeLater(() -> {
+                            try {
+                                PeerGUI gui = new PeerGUI(peer2);
+                                gui.setVisible(true);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        });
+
+                                    // Iniciar a GUI para peer1
             SwingUtilities.invokeLater(() -> {
-                PeerGUI gui2 = new PeerGUI(peer2);
-                gui2.setVisible(true);
+                try {
+                    PeerGUI gui = new PeerGUI(peer3);
+                    gui.setVisible(true);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             });
 
-            SwingUtilities.invokeLater(() -> {
-                PeerGUI gui3 = new PeerGUI(peer3);
-                gui3.setVisible(true);
-            });
-            
+
         } catch (Exception e) {
             e.printStackTrace();
         }
