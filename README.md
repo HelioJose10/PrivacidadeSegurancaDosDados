@@ -24,7 +24,7 @@ que duas partes estabeleçam uma chave secreta compartilhada sobre um canal inse
 ## Pré-requisitos
 
 - Java Development Kit (JDK) 8 ou superior
-- IDE de sua escolha (opcional, mas recomendado)
+- IDE de sua escolha (opcional, mas recomendamos Visual Studio Code)
   
 ## Instalação
 
