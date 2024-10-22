@@ -52,7 +52,7 @@ Mensagens enviadas por outros peers aparecerão automaticamente na interface, as
 ## Funcionamento
 
 
-- **Comunicação segura**: As mensagens são criptografadas usando AES e RSA.
+- **Comunicação segura**: As mensagens são criptografadas usando AES.
 - **Troca de chaves**: Implementação do protocolo Diffie-Hellman para troca segura de chaves.
 - **Interface gráfica**: Utilização do Swing para criar uma interface intuitiva.
 - **Atualizações em tempo real**: A interface é atualizada automaticamente com novas mensagens e destinatários.
