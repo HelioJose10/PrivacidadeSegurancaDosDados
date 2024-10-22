@@ -1,17 +1,33 @@
 // Definição do pacote principal onde a classe Peer está localizada
 package main.java;
 
-// Importações necessárias para criptografia, GUI, I/O, rede, segurança, coleções e concorrência
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import javax.swing.SwingUtilities;
-import java.io.*;
-import java.net.*;
-import java.security.*;
-import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
+
 
 /**
  * Classe Peer que representa um nó em uma rede P2P (Peer-to-Peer).
@@ -77,23 +93,22 @@ public class Peer {
      * @throws IOException Caso ocorra um erro ao criar o ServerSocket
      */
     public void iniciar() throws IOException {
-        ServerSocket serverSocket = new ServerSocket(porta); // Cria um ServerSocket na porta especificada
+        ServerSocket serverSocket = new ServerSocket(porta);
         System.out.println("\nPeer iniciado na porta " + porta);
         
-        // Inicia uma nova thread para aceitar conexões de forma contínua
         new Thread(() -> {
             while (true) {
                 try {
                     Socket socket = serverSocket.accept(); // Aceita uma conexão
-                    // Inicia uma nova thread para lidar com a conexão recebida usando PeerHandler
-                    new Thread(new PeerHandler(socket, this)).start();
+                    // Chama o método para receber mensagens do peer conectado
+                    receberMensagem(socket);
                 } catch (IOException e) {
-                    e.printStackTrace(); // Imprime a pilha de erros em caso de exceção
+                    e.printStackTrace();
                 }
             }
         }).start();
     }
-
+    
     /**
      * Envia uma mensagem criptografada para o Peer destinatário especificado.
      * Utiliza criptografia assimétrica (RSA) para criptografar a chave simétrica (AES),
@@ -205,6 +220,50 @@ public class Peer {
     }
 
     /**
+ * Método privado para descriptografar a mensagem que foi criptografada com a chave simétrica (AES).
+ *
+ * @param mensagemCriptografada Array de bytes representando a mensagem criptografada
+ * @param chaveSimetrica        SecretKey utilizada para criptografar a mensagem
+ * @return String representando a mensagem descriptografada
+ * @throws GeneralSecurityException Caso ocorra um erro durante a descriptografia
+ */
+private String descriptografarMensagem(byte[] mensagemCriptografada, SecretKey chaveSimetrica) throws GeneralSecurityException {
+    // Obtém uma instância do Cipher para AES
+    Cipher cipher = Cipher.getInstance("AES");
+    
+    // Inicializa o Cipher em modo de descriptografia utilizando a chave simétrica
+    cipher.init(Cipher.DECRYPT_MODE, chaveSimetrica);
+    
+    // Executa a descriptografia da mensagem
+    byte[] mensagemDescriptografada = cipher.doFinal(mensagemCriptografada);
+    
+    // Converte os bytes descriptografados de volta para uma String usando a codificação padrão
+    return new String(mensagemDescriptografada);
+}
+
+/**
+ * Método privado para descriptografar a chave simétrica (AES) que foi criptografada com a chave pública RSA do remetente.
+ *
+ * @param chaveSimetricaCriptografada Array de bytes representando a chave simétrica criptografada
+ * @return SecretKey representando a chave simétrica descriptografada
+ * @throws GeneralSecurityException Caso ocorra um erro durante a descriptografia
+ */
+private SecretKey descriptografarChaveSimetrica(byte[] chaveSimetricaCriptografada) throws GeneralSecurityException {
+    // Obtém uma instância do Cipher para RSA
+    Cipher cipher = Cipher.getInstance("RSA");
+    
+    // Inicializa o Cipher em modo de descriptografia utilizando a chave privada do Peer
+    cipher.init(Cipher.DECRYPT_MODE, chavePrivada); // Usar a chave privada do Peer para descriptografar
+    
+    // Executa a descriptografia da chave simétrica
+    byte[] chaveSimetricaDecodificada = cipher.doFinal(chaveSimetricaCriptografada);
+    
+    // Cria uma SecretKey a partir dos bytes da chave simétrica descriptografada, especificando o algoritmo AES
+    return new SecretKeySpec(chaveSimetricaDecodificada, "AES");
+}
+
+
+    /**
      * Notifica todos os ouvintes (listeners) registrados sobre uma nova mensagem recebida.
      *
      * @param idDestinatario ID do Peer destinatário da mensagem
@@ -243,6 +302,51 @@ public class Peer {
     public List<String> getMensagens(String idDestinatario) {
         return conversas.getOrDefault(idDestinatario, new ArrayList<>());
     }
+
+    /**
+ * Método para receber e processar mensagens de um peer remoto.
+ *
+ * @param socket Socket representando a conexão com o peer remoto
+ */
+public void receberMensagem(Socket socket) {
+    try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+        String mensagemCriptografada;
+        while ((mensagemCriptografada = in.readLine()) != null) {
+            // Divide a mensagem recebida em partes usando o delimitador "|"
+            String[] partes = mensagemCriptografada.split("\\|");
+            
+            // Verifica se a mensagem está no formato esperado (3 partes)
+            if (partes.length != 3) {
+                System.out.println("Formato de mensagem inválido.");
+                continue; // Pula para a próxima iteração do loop
+            }
+            
+            // Extrai o ID do remetente da primeira parte da mensagem
+            String idRemetente = partes[0];
+            
+            // Decodifica a chave simétrica criptografada da segunda parte da mensagem usando Base64
+            byte[] chaveSimetricaCriptografada = Base64.getDecoder().decode(partes[1]);
+            
+            // Decodifica a mensagem criptografada da terceira parte da mensagem usando Base64
+            byte[] mensagemDecodificada = Base64.getDecoder().decode(partes[2]);
+
+            // Descriptografa a chave simétrica utilizando a chave privada do Peer
+            SecretKey chaveSimetrica = descriptografarChaveSimetrica(chaveSimetricaCriptografada);
+            
+            // Descriptografa a mensagem utilizando a chave simétrica obtida
+            String mensagem = descriptografarMensagem(mensagemDecodificada, chaveSimetrica);
+
+            // Exibe a mensagem recebida no console
+            System.out.println("\nMensagem recebida de " + idRemetente + ": " + mensagem);
+            
+            // Armazena a mensagem recebida no objeto Peer para que possa ser acessada posteriormente
+            armazenarMensagem(idRemetente, mensagem);
+        }
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+
 
     /**
      * Obtém o ID único do Peer.
