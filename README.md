@@ -16,8 +16,6 @@ da Universidade de Lisboa.
 
 -**Swing**: Biblioteca Java para construção da interface gráfica do usuário.
 
--**RSA**: Criptografia assimétrica utilizada para troca de chaves simétricas.
-
 -**AES**: Criptografia simétrica utilizada para criptografar mensagens.
 
 -**Diffie-Hellman**: Utilizado para a troca segura de chaves entre os peers, permitindo 
