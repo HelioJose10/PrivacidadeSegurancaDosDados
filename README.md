@@ -28,11 +28,8 @@ que duas partes estabeleçam uma chave secreta compartilhada sobre um canal inse
   
 ## Instalação
 
-1. Clone este repositório:
-   git clone https://seu-repositorio.git
-
-2. Navegue até o diretório do projeto:  
-   cd projeto
+1. Clone este repositório: git clone https://seu-repositorio.git
+2. Navegue até o diretório do projeto: cd projeto
 
 ## Como Usar
 
