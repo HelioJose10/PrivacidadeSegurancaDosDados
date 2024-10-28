@@ -88,7 +88,7 @@ public class PeerHandler implements Runnable {
                 System.out.println("\nMensagem recebida de " + idRemetente + ": " + mensagem);
 
                 // Armazena a mensagem recebida no objeto Peer para que possa ser acessada posteriormente
-                peer.armazenarMensagem(idRemetente, mensagem);
+                peer.armazenarMensagem(idRemetente, idRemetente, mensagem);
             }
         } catch (Exception e) {
             e.printStackTrace(); // Imprime a pilha de erros em caso de exceção

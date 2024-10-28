@@ -52,6 +52,7 @@ public class Peer {
     private Map<String, PublicKey> chavesPublicasConhecidas;
     
     // Mapa que armazena conversas (mensagens) por conversa identificada pelo ID do destinatário
+    // A lista de Strings alterna estre o remetente da mensagem e a mensagem em si
     Map<String, List<String>> conversas; // Para armazenar mensagens por conversa
 
     // Lista de ouvintes (listeners) para atualizar a interface gráfica (GUI) quando há novas mensagens
@@ -62,11 +63,12 @@ public class Peer {
      * Inicializa a porta, gera uma ID única para o Peer, inicializa a DHT e gera as chaves pública e privada.
      *
      * @param porta Porta na qual o Peer irá escutar conexões
+     * @param idPeer id do utilizador tem de ser exclusivo
      * @throws NoSuchAlgorithmException Caso o algoritmo de geração de chaves não seja encontrado
      */
-    public Peer(int porta) throws NoSuchAlgorithmException {
+    public Peer(int porta, String idPeer) throws NoSuchAlgorithmException {
         this.porta = porta;
-        this.idPeer = UUID.randomUUID().toString(); // Gera uma ID única usando UUID
+        this.idPeer = idPeer;
         this.dht = new HashMap<>();
         gerarChaves(); // Gera as chaves pública e privada
         this.chavesPublicasConhecidas = new HashMap<>();
@@ -143,7 +145,7 @@ public class Peer {
                             Base64.getEncoder().encodeToString(mensagemCriptografada));
 
                     // Armazena a mensagem localmente e notifica a GUI
-                    armazenarMensagem(idDestinatario, mensagem);
+                    armazenarMensagem(idDestinatario, idPeer, mensagem);
                     System.out.println("Mensagem enviada para " + idDestinatario + ": " + mensagem);
                 } else {
                     System.out.println("Chave pública do destinatário não encontrada.");
@@ -212,22 +214,23 @@ public class Peer {
      * @param idDestinatario ID do Peer com quem a conversa está sendo mantida
      * @param mensagem Mensagem a ser armazenada
      */
-    public void armazenarMensagem(String idDestinatario, String mensagem) {
+    public void armazenarMensagem(String idDestinatario, String idRemetente, String mensagem) {
         // Adiciona a mensagem à lista de mensagens da conversa; cria a lista se não existir
+        conversas.computeIfAbsent(idDestinatario, k -> new ArrayList<>()).add(idRemetente);
         conversas.computeIfAbsent(idDestinatario, k -> new ArrayList<>()).add(mensagem);
         // Notifica os ouvintes (listeners) que há uma nova mensagem
         notifyNewMessage(idDestinatario, mensagem);
     }
 
     /**
- * Método privado para descriptografar a mensagem que foi criptografada com a chave simétrica (AES).
- *
- * @param mensagemCriptografada Array de bytes representando a mensagem criptografada
- * @param chaveSimetrica        SecretKey utilizada para criptografar a mensagem
- * @return String representando a mensagem descriptografada
- * @throws GeneralSecurityException Caso ocorra um erro durante a descriptografia
- */
-private String descriptografarMensagem(byte[] mensagemCriptografada, SecretKey chaveSimetrica) throws GeneralSecurityException {
+     * Método privado para descriptografar a mensagem que foi criptografada com a chave simétrica (AES).
+     *
+     * @param mensagemCriptografada Array de bytes representando a mensagem criptografada
+     * @param chaveSimetrica        SecretKey utilizada para criptografar a mensagem
+     * @return String representando a mensagem descriptografada
+     * @throws GeneralSecurityException Caso ocorra um erro durante a descriptografia
+     */
+    private String descriptografarMensagem(byte[] mensagemCriptografada, SecretKey chaveSimetrica) throws GeneralSecurityException {
     // Obtém uma instância do Cipher para AES
     Cipher cipher = Cipher.getInstance("AES");
     
@@ -340,7 +343,7 @@ public void receberMensagem(Socket socket) {
             System.out.println("\nMensagem recebida de " + idRemetente + ": " + mensagem);
             
             // Armazena a mensagem recebida no objeto Peer para que possa ser acessada posteriormente
-            armazenarMensagem(idRemetente, mensagem);
+            armazenarMensagem(idRemetente ,idRemetente, mensagem);
         }
     } catch (Exception e) {
         e.printStackTrace();
@@ -385,30 +388,30 @@ public void receberMensagem(Socket socket) {
     public static void main(String[] args) {
         try {
             // Inicializar três Peers em portas diferentes
-            Peer peer1 = new Peer(8081);
+            Peer peer1 = new Peer(8081, "peer1");
             peer1.iniciar();
 
-            Peer peer2 = new Peer(8082);
+            Peer peer2 = new Peer(8082, "peer2");
             peer2.iniciar();
 
-            Peer peer3 = new Peer(8083);
+            Peer peer3 = new Peer(8083, "peer3");
             peer3.iniciar();
 
             // Armazenar as chaves públicas entre os Peers para permitir comunicação segura
-            peer1.armazenarChavePublica("peer2", peer2.getChavePublica());
-            peer1.armazenarChavePublica("peer3", peer3.getChavePublica());
-            peer2.armazenarChavePublica("peer1", peer1.getChavePublica());
-            peer2.armazenarChavePublica("peer3", peer3.getChavePublica());
-            peer3.armazenarChavePublica("peer1", peer1.getChavePublica());
-            peer3.armazenarChavePublica("peer2", peer2.getChavePublica());
+            peer1.armazenarChavePublica(peer2.getIdPeer(), peer2.getChavePublica());
+            peer1.armazenarChavePublica(peer3.getIdPeer(), peer3.getChavePublica());
+            peer2.armazenarChavePublica(peer1.getIdPeer(), peer1.getChavePublica());
+            peer2.armazenarChavePublica(peer3.getIdPeer(), peer3.getChavePublica());
+            peer3.armazenarChavePublica(peer1.getIdPeer(), peer1.getChavePublica());
+            peer3.armazenarChavePublica(peer2.getIdPeer(), peer2.getChavePublica());
 
             // Registrar os Peers na DHT de cada um para que saibam os endereços uns dos outros
-            peer1.registrarPeer("peer2", new InetSocketAddress("localhost", 8082));
-            peer1.registrarPeer("peer3", new InetSocketAddress("localhost", 8083));
-            peer2.registrarPeer("peer1", new InetSocketAddress("localhost", 8081));
-            peer2.registrarPeer("peer3", new InetSocketAddress("localhost", 8083));
-            peer3.registrarPeer("peer1", new InetSocketAddress("localhost", 8081));
-            peer3.registrarPeer("peer2", new InetSocketAddress("localhost", 8082));
+            peer1.registrarPeer(peer2.getIdPeer(), new InetSocketAddress("localhost", 8082));
+            peer1.registrarPeer(peer3.getIdPeer(), new InetSocketAddress("localhost", 8083));
+            peer2.registrarPeer(peer1.getIdPeer(), new InetSocketAddress("localhost", 8081));
+            peer2.registrarPeer(peer3.getIdPeer(), new InetSocketAddress("localhost", 8083));
+            peer3.registrarPeer(peer1.getIdPeer(), new InetSocketAddress("localhost", 8081));
+            peer3.registrarPeer(peer2.getIdPeer(), new InetSocketAddress("localhost", 8082));
 
             // Iniciar a GUI para peer1
             SwingUtilities.invokeLater(() -> {

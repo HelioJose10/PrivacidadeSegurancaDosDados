@@ -150,8 +150,9 @@ public class PeerGUI extends JFrame implements PeerGUIListener {
     private void exibirMensagens(String idPeer) {
         List<String> mensagens = peer.getMensagens(idPeer); // Obtém mensagens da conversa
         StringBuilder sb = new StringBuilder(); // Cria um StringBuilder para compor as mensagens
-        for (String msg : mensagens) {
-            sb.append(msg).append("\n"); // Adiciona cada mensagem ao StringBuilder
+        for (int i = 0; i < mensagens.size(); i+=2) {
+            sb.append(mensagens.get(i) + ": ");
+            sb.append(mensagens.get(i+1)).append("\n");
         }
         textAreaConversa.setText(sb.toString()); // Atualiza a área de texto com as mensagens
     }
