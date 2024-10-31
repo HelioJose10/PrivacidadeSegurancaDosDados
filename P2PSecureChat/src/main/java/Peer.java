@@ -19,10 +19,10 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.crypto.Cipher;
+import javax.crypto.KeyAgreement;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -50,6 +50,9 @@ public class Peer {
     
     // Mapa que armazena as chaves públicas conhecidas de outros peers
     private Map<String, PublicKey> chavesPublicasConhecidas;
+
+    // Mapa que armazena as chaves simetricas geradas pelo Diffie-Hellman (1 por conversa)
+    private Map<String, byte[]> chavesSimetricas;
     
     // Mapa que armazena conversas (mensagens) por conversa identificada pelo ID do destinatário
     // A lista de Strings alterna estre o remetente da mensagem e a mensagem em si
@@ -81,7 +84,7 @@ public class Peer {
      * @throws NoSuchAlgorithmException Caso o algoritmo RSA não seja suportado
      */
     private void gerarChaves() throws NoSuchAlgorithmException {
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA"); // Obtém uma instância do gerador de pares de chaves RSA
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DiffieHellman"); // Obtém uma instância do gerador de pares de chaves RSA
         keyGen.initialize(2048); // Inicializa o gerador com tamanho de chave de 2048 bits
         KeyPair parDeChaves = keyGen.generateKeyPair(); // Gera o par de chaves
         chavePublica = parDeChaves.getPublic(); // Obtém a chave pública
@@ -128,16 +131,29 @@ public class Peer {
                 // Obtém a chave pública do destinatário
                 PublicKey chavePublicaDestinatario = chavesPublicasConhecidas.get(idDestinatario);
                 if (chavePublicaDestinatario != null) {
-                    // Gera uma chave simétrica AES para criptografar a mensagem
-                    KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-                    keyGen.init(256); // Inicializa com chave de 256 bits
-                    SecretKey chaveSimetrica = keyGen.generateKey();
-                    
-                    // Criptografa a chave simétrica usando a chave pública do destinatário
-                    byte[] chaveSimetricaCriptografada = criptografarChaveSimetrica(chaveSimetrica, chavePublicaDestinatario);
+                    byte[] chaveSimetricaConversa = chavesSimetricas.get(idDestinatario);
+                    if(chaveSimetricaConversa != null) { // se nao tivermos um sharedSecret com este user, criar uma nova
 
+                        // Inicializar o KeyAgreement com a nossa chave privada
+                        KeyAgreement keyAgree = KeyAgreement.getInstance("DiffieHellman");
+                        keyAgree.init(chavePrivada);
+
+                        // Executar a primeira fase do DH
+                        keyAgree.doPhase(chavePublicaDestinatario, true);
+
+                        // Gerar o shared secret
+                        byte[] sharedSecret = keyAgree.generateSecret();
+                        chavesSimetricas.put(idDestinatario, sharedSecret);
+
+                    }
+
+                    // TODO
+                    // Aqui deviamos usar o shared secret para gerar uma chave simetrica com AES, depois o recipiente
+                    // tem de fazer a mesma coisa e pode descifrar a mensagem.
+
+                    byte[] sharedSecret = chavesSimetricas.get(idDestinatario);
                     // Criptografa a mensagem usando a chave simétrica
-                    byte[] mensagemCriptografada = criptografarMensagem(mensagem, chaveSimetrica);
+                    byte[] mensagemCriptografada = criptografarMensagem(mensagem, sharedSecret);
 
                     // Estrutura da mensagem a ser enviada: idRemetente|chaveSimetricaCriptografada|mensagemCriptografada
                     out.println(idPeer + "|" +
