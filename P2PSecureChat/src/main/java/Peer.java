@@ -136,25 +136,26 @@ public class Peer {
                     if (chavePublicaDestinatario != null) {
                         applyDiffieHellman(idDestinatario, chavePublicaDestinatario);
                     }
-
-                    SecretKeySpec aesKey = chavesSimetricas.get(idDestinatario);
-
-                    // Inicializa a cifra para AES
-                    Cipher cipher = Cipher.getInstance("AES");
-                    cipher.init(Cipher.ENCRYPT_MODE, aesKey);
-
-                    // Criptografa a mensagem usando a chave simétrica
-                    byte[] mensagemCriptografada = criptografarMensagem(mensagem, aesKey);
-
-                    // Estrutura da mensagem a ser enviada: idRemetente|mensagemCriptografada
-                    out.println(idPeer + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada));
-
-                    // Armazena a mensagem localmente e notifica a GUI
-                    armazenarMensagem(idDestinatario, idPeer, mensagem);
-                    System.out.println("Mensagem enviada para " + idDestinatario + ": " + mensagem);
-                } else {
-                    System.out.println("Chave pública do destinatário não encontrada.");
+                    else
+                        System.out.println("Chave pública do destinatário não encontrada.");            
                 }
+                
+                SecretKeySpec aesKey = chavesSimetricas.get(idDestinatario);
+
+                // Inicializa a cifra para AES
+                Cipher cipher = Cipher.getInstance("AES");
+                cipher.init(Cipher.ENCRYPT_MODE, aesKey);
+
+                // Criptografa a mensagem usando a chave simétrica
+                byte[] mensagemCriptografada = criptografarMensagem(mensagem, aesKey);
+
+                // Estrutura da mensagem a ser enviada: idRemetente|mensagemCriptografada
+                out.println(idPeer + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada));
+
+                // Armazena a mensagem localmente e notifica a GUI
+                armazenarMensagem(idDestinatario, idPeer, mensagem);
+                System.out.println("Mensagem enviada para " + idDestinatario + ": " + mensagem);
+                
             } catch (Exception e) {
                 e.printStackTrace(); // Imprime a pilha de erros em caso de exceção
             }
