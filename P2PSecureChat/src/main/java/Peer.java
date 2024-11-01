@@ -9,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -23,7 +24,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import javax.swing.SwingUtilities;
@@ -52,7 +52,7 @@ public class Peer {
     private Map<String, PublicKey> chavesPublicasConhecidas;
 
     // Mapa que armazena as chaves simetricas geradas pelo Diffie-Hellman (1 por conversa)
-    private Map<String, byte[]> chavesSimetricas;
+    private Map<String, SecretKeySpec> chavesSimetricas;
     
     // Mapa que armazena conversas (mensagens) por conversa identificada pelo ID do destinatário
     // A lista de Strings alterna estre o remetente da mensagem e a mensagem em si
@@ -76,6 +76,7 @@ public class Peer {
         gerarChaves(); // Gera as chaves pública e privada
         this.chavesPublicasConhecidas = new HashMap<>();
         this.conversas = new HashMap<>();
+        this.chavesSimetricas = new HashMap<>();
     }
 
     /**
@@ -116,7 +117,7 @@ public class Peer {
     
     /**
      * Envia uma mensagem criptografada para o Peer destinatário especificado.
-     * Utiliza criptografia assimétrica (RSA) para criptografar a chave simétrica (AES),
+     * Utiliza Diffie-Hellman para criptografar a chave simétrica (AES),
      * e criptografia simétrica para criptografar a mensagem.
      *
      * @param idDestinatario ID do Peer destinatário
@@ -128,37 +129,25 @@ public class Peer {
             try (Socket socket = new Socket(peerAddress.getHostName(), peerAddress.getPort());
                  PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
 
-                // Obtém a chave pública do destinatário
-                PublicKey chavePublicaDestinatario = chavesPublicasConhecidas.get(idDestinatario);
-                if (chavePublicaDestinatario != null) {
-                    byte[] chaveSimetricaConversa = chavesSimetricas.get(idDestinatario);
-                    if(chaveSimetricaConversa != null) { // se nao tivermos um sharedSecret com este user, criar uma nova
+                if(chavesSimetricas.get(idDestinatario) == null){ // Se não tivermos uma chave simetrica com este Peer
 
-                        // Inicializar o KeyAgreement com a nossa chave privada
-                        KeyAgreement keyAgree = KeyAgreement.getInstance("DiffieHellman");
-                        keyAgree.init(chavePrivada);
-
-                        // Executar a primeira fase do DH
-                        keyAgree.doPhase(chavePublicaDestinatario, true);
-
-                        // Gerar o shared secret
-                        byte[] sharedSecret = keyAgree.generateSecret();
-                        chavesSimetricas.put(idDestinatario, sharedSecret);
-
+                    // Obtém a chave pública do destinatário
+                    PublicKey chavePublicaDestinatario = chavesPublicasConhecidas.get(idDestinatario);
+                    if (chavePublicaDestinatario != null) {
+                        applyDiffieHellman(idDestinatario, chavePublicaDestinatario);
                     }
 
-                    // TODO
-                    // Aqui deviamos usar o shared secret para gerar uma chave simetrica com AES, depois o recipiente
-                    // tem de fazer a mesma coisa e pode descifrar a mensagem.
+                    SecretKeySpec aesKey = chavesSimetricas.get(idDestinatario);
 
-                    byte[] sharedSecret = chavesSimetricas.get(idDestinatario);
+                    // Inicializa a cifra para AES
+                    Cipher cipher = Cipher.getInstance("AES");
+                    cipher.init(Cipher.ENCRYPT_MODE, aesKey);
+
                     // Criptografa a mensagem usando a chave simétrica
-                    byte[] mensagemCriptografada = criptografarMensagem(mensagem, sharedSecret);
+                    byte[] mensagemCriptografada = criptografarMensagem(mensagem, aesKey);
 
-                    // Estrutura da mensagem a ser enviada: idRemetente|chaveSimetricaCriptografada|mensagemCriptografada
-                    out.println(idPeer + "|" +
-                            Base64.getEncoder().encodeToString(chaveSimetricaCriptografada) + "|" +
-                            Base64.getEncoder().encodeToString(mensagemCriptografada));
+                    // Estrutura da mensagem a ser enviada: idRemetente|mensagemCriptografada
+                    out.println(idPeer + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada));
 
                     // Armazena a mensagem localmente e notifica a GUI
                     armazenarMensagem(idDestinatario, idPeer, mensagem);
@@ -196,20 +185,6 @@ public class Peer {
     }
 
     /**
-     * Método privado para criptografar a chave simétrica (AES) usando a chave pública RSA do destinatário.
-     *
-     * @param chaveSimetrica Chave simétrica a ser criptografada
-     * @param chavePublica Chave pública do destinatário
-     * @return Array de bytes representando a chave simétrica criptografada
-     * @throws GeneralSecurityException Caso ocorra um erro durante a criptografia
-     */
-    private byte[] criptografarChaveSimetrica(SecretKey chaveSimetrica, PublicKey chavePublica) throws GeneralSecurityException {
-        Cipher cipher = Cipher.getInstance("RSA"); // Obtém uma instância do Cipher para RSA
-        cipher.init(Cipher.ENCRYPT_MODE, chavePublica); // Inicializa o Cipher em modo de criptografia com a chave pública
-        return cipher.doFinal(chaveSimetrica.getEncoded()); // Executa a criptografia e retorna o resultado
-    }
-
-    /**
      * Método privado para criptografar a mensagem usando a chave simétrica (AES).
      *
      * @param mensagem Mensagem a ser criptografada
@@ -217,9 +192,9 @@ public class Peer {
      * @return Array de bytes representando a mensagem criptografada
      * @throws GeneralSecurityException Caso ocorra um erro durante a criptografia
      */
-    private byte[] criptografarMensagem(String mensagem, SecretKey chaveSimetrica) throws GeneralSecurityException {
+    private byte[] criptografarMensagem(String mensagem, SecretKeySpec aesKey) throws GeneralSecurityException {
         Cipher cipher = Cipher.getInstance("AES"); // Obtém uma instância do Cipher para AES
-        cipher.init(Cipher.ENCRYPT_MODE, chaveSimetrica); // Inicializa o Cipher em modo de criptografia com a chave simétrica
+        cipher.init(Cipher.ENCRYPT_MODE, aesKey); // Inicializa o Cipher em modo de criptografia com a chave simétrica
         return cipher.doFinal(mensagem.getBytes()); // Executa a criptografia e retorna o resultado
     }
 
@@ -242,45 +217,18 @@ public class Peer {
      * Método privado para descriptografar a mensagem que foi criptografada com a chave simétrica (AES).
      *
      * @param mensagemCriptografada Array de bytes representando a mensagem criptografada
-     * @param chaveSimetrica        SecretKey utilizada para criptografar a mensagem
+     * @param aesKey        SecretKey utilizada para criptografar a mensagem
      * @return String representando a mensagem descriptografada
      * @throws GeneralSecurityException Caso ocorra um erro durante a descriptografia
      */
-    private String descriptografarMensagem(byte[] mensagemCriptografada, SecretKey chaveSimetrica) throws GeneralSecurityException {
-    // Obtém uma instância do Cipher para AES
-    Cipher cipher = Cipher.getInstance("AES");
-    
-    // Inicializa o Cipher em modo de descriptografia utilizando a chave simétrica
-    cipher.init(Cipher.DECRYPT_MODE, chaveSimetrica);
-    
-    // Executa a descriptografia da mensagem
-    byte[] mensagemDescriptografada = cipher.doFinal(mensagemCriptografada);
-    
-    // Converte os bytes descriptografados de volta para uma String usando a codificação padrão
-    return new String(mensagemDescriptografada);
-}
-
-/**
- * Método privado para descriptografar a chave simétrica (AES) que foi criptografada com a chave pública RSA do remetente.
- *
- * @param chaveSimetricaCriptografada Array de bytes representando a chave simétrica criptografada
- * @return SecretKey representando a chave simétrica descriptografada
- * @throws GeneralSecurityException Caso ocorra um erro durante a descriptografia
- */
-private SecretKey descriptografarChaveSimetrica(byte[] chaveSimetricaCriptografada) throws GeneralSecurityException {
-    // Obtém uma instância do Cipher para RSA
-    Cipher cipher = Cipher.getInstance("RSA");
-    
-    // Inicializa o Cipher em modo de descriptografia utilizando a chave privada do Peer
-    cipher.init(Cipher.DECRYPT_MODE, chavePrivada); // Usar a chave privada do Peer para descriptografar
-    
-    // Executa a descriptografia da chave simétrica
-    byte[] chaveSimetricaDecodificada = cipher.doFinal(chaveSimetricaCriptografada);
-    
-    // Cria uma SecretKey a partir dos bytes da chave simétrica descriptografada, especificando o algoritmo AES
-    return new SecretKeySpec(chaveSimetricaDecodificada, "AES");
-}
-
+    private String descriptografarMensagem(byte[] mensagemCriptografada, SecretKey aesKey) throws GeneralSecurityException {
+        // Obtém uma instância do Cipher para AES
+        Cipher cipher = Cipher.getInstance("AES");
+        // Inicializa o Cipher em modo de descriptografia utilizando a chave simétrica
+        cipher.init(Cipher.DECRYPT_MODE, aesKey);
+        // Executa a descriptografia da mensagem
+        return new String(cipher.doFinal(mensagemCriptografada));
+    }
 
     /**
      * Notifica todos os ouvintes (listeners) registrados sobre uma nova mensagem recebida.
@@ -323,48 +271,74 @@ private SecretKey descriptografarChaveSimetrica(byte[] chaveSimetricaCriptografa
     }
 
     /**
- * Método para receber e processar mensagens de um peer remoto.
- *
- * @param socket Socket representando a conexão com o peer remoto
- */
-public void receberMensagem(Socket socket) {
-    try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-        String mensagemCriptografada;
-        while ((mensagemCriptografada = in.readLine()) != null) {
-            // Divide a mensagem recebida em partes usando o delimitador "|"
-            String[] partes = mensagemCriptografada.split("\\|");
-            
-            // Verifica se a mensagem está no formato esperado (3 partes)
-            if (partes.length != 3) {
-                System.out.println("Formato de mensagem inválido.");
-                continue; // Pula para a próxima iteração do loop
+     * Método para receber e processar mensagens de um peer remoto.
+     *
+     * @param socket Socket representando a conexão com o peer remoto
+     */
+    public void receberMensagem(Socket socket) {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+            String mensagemCriptografada;
+            while ((mensagemCriptografada = in.readLine()) != null) {
+                // Divide a mensagem recebida em partes usando o delimitador "|"
+                String[] partes = mensagemCriptografada.split("\\|");
+                
+                // Verifica se a mensagem está no formato esperado (2 partes)
+                if (partes.length != 2) {
+                    System.out.println("Formato de mensagem inválido, partes: " + partes.length);
+                    continue; // Pula para a próxima iteração do loop
+                }
+                
+                // Extrai o ID do remetente da primeira parte da mensagem
+                String idRemetente = partes[0];
+                PublicKey chaveRemetente = chavesPublicasConhecidas.get(idRemetente);
+
+                if(chavesSimetricas.get(idRemetente) == null) { //Verifica se NAO tem uma chave simetrica guardada para este user
+                    applyDiffieHellman(idRemetente, chaveRemetente);
+                }
+
+                // Decodifica a mensagem criptografada da segunda parte da mensagem usando Base64
+                byte[] mensagemDecodificada = Base64.getDecoder().decode(partes[1]);
+
+                // Descriptografa a chave simétrica utilizando a chave privada do Peer
+                SecretKey chaveSimetrica = chavesSimetricas.get(idRemetente);
+                
+                // Descriptografa a mensagem utilizando a chave simétrica obtida
+                String mensagem = descriptografarMensagem(mensagemDecodificada, chaveSimetrica);
+
+                // Exibe a mensagem recebida no console
+                System.out.println("\nMensagem recebida de " + idRemetente + ": " + mensagem);
+                
+                // Armazena a mensagem recebida no objeto Peer para que possa ser acessada posteriormente
+                armazenarMensagem(idRemetente ,idRemetente, mensagem);
             }
-            
-            // Extrai o ID do remetente da primeira parte da mensagem
-            String idRemetente = partes[0];
-            
-            // Decodifica a chave simétrica criptografada da segunda parte da mensagem usando Base64
-            byte[] chaveSimetricaCriptografada = Base64.getDecoder().decode(partes[1]);
-            
-            // Decodifica a mensagem criptografada da terceira parte da mensagem usando Base64
-            byte[] mensagemDecodificada = Base64.getDecoder().decode(partes[2]);
-
-            // Descriptografa a chave simétrica utilizando a chave privada do Peer
-            SecretKey chaveSimetrica = descriptografarChaveSimetrica(chaveSimetricaCriptografada);
-            
-            // Descriptografa a mensagem utilizando a chave simétrica obtida
-            String mensagem = descriptografarMensagem(mensagemDecodificada, chaveSimetrica);
-
-            // Exibe a mensagem recebida no console
-            System.out.println("\nMensagem recebida de " + idRemetente + ": " + mensagem);
-            
-            // Armazena a mensagem recebida no objeto Peer para que possa ser acessada posteriormente
-            armazenarMensagem(idRemetente ,idRemetente, mensagem);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-    } catch (Exception e) {
-        e.printStackTrace();
     }
-}
+
+    /**
+     * Guarantees:
+     *  - Garante que no fim vai haver uma chave simetrica guardada em chavesSimetricas para p Peer especificado.
+     * @param idPeer
+     * @param chavePublicaPeer
+     * @throws NoSuchAlgorithmException
+     * @throws InvalidKeyException
+     */
+    public void applyDiffieHellman(String idPeer, PublicKey chavePublicaPeer) throws NoSuchAlgorithmException, InvalidKeyException {
+        // Inicializar o KeyAgreement com a nossa chave privada
+        KeyAgreement keyAgree = KeyAgreement.getInstance("DiffieHellman");
+        keyAgree.init(chavePrivada);
+
+        // Executar a primeira fase do DH
+        keyAgree.doPhase(chavePublicaPeer, true);
+
+        // Gerar o shared secret
+        byte[] sharedSecret = keyAgree.generateSecret();
+
+        // Gerar uma chave a partir do DIffie-Hellman secret e guarda no Peer
+        SecretKeySpec aesKey = new SecretKeySpec(sharedSecret, 0, 16, "AES"); // Use 16 bytes for AES-128
+        chavesSimetricas.put(idPeer, aesKey);
+    }
 
 
     /**
