@@ -302,12 +302,12 @@ public class Peer {
 
                 // Descriptografa a chave simétrica utilizando a chave privada do Peer
                 SecretKey chaveSimetrica = chavesSimetricas.get(idRemetente);
+
+                // Exibe a mensagem recebida no console
+                System.out.println("\nMensagem recebida de " + idRemetente + ": " + mensagemDecodificada);
                 
                 // Descriptografa a mensagem utilizando a chave simétrica obtida
                 String mensagem = descriptografarMensagem(mensagemDecodificada, chaveSimetrica);
-
-                // Exibe a mensagem recebida no console
-                System.out.println("\nMensagem recebida de " + idRemetente + ": " + mensagem);
                 
                 // Armazena a mensagem recebida no objeto Peer para que possa ser acessada posteriormente
                 armazenarMensagem(idRemetente ,idRemetente, mensagem);
