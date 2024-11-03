@@ -159,13 +159,13 @@ public class PeerGUI extends JFrame implements PeerGUIListener {
         }
     }
 
-// Método para exibir mensagens de uma conversa
-private void exibirMensagens(String idPeer) {
+    // Método para exibir mensagens de uma conversa
+    private void exibirMensagens(String idPeer) {
     List<String> mensagens = peer.getMensagens(idPeer); // Obtém mensagens da conversa
     StringBuilder sb = new StringBuilder(); // Cria um StringBuilder para compor as mensagens
     String meuId = peer.getIdPeer(); // Obtém o ID do próprio peer para verificar autor da mensagem
     
-    for (int i = 0; i < mensagens.size(); i += 2) {
+        for (int i = 0; i < mensagens.size(); i += 2) {
         String remetente = mensagens.get(i);
         String conteudo = mensagens.get(i + 1);
         
