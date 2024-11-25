@@ -38,7 +38,7 @@ Compile o projeto em sua IDE ou use o terminal para compilar os arquivos .java.
 Execute a classe principal do programa. Uma janela gráfica será aberta.
 
 Para compilar:
-  javac -d bin src/main/java/*.java
+  javac -d bin src/main/java/\*.java
 Para correr:
   java -cp bin main.java.Peer
 Para limpar o /bin:
