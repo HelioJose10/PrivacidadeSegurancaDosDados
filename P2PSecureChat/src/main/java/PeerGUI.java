@@ -1,11 +1,24 @@
 // Definição do pacote principal onde a classe PeerGUI está localizada
 package main.java;
 
-import javax.swing.*; // Importa componentes da biblioteca Swing para criar a GUI
-import javax.swing.border.EmptyBorder; // Importa a borda vazia
-import java.awt.*; // Importa classes de layout e componentes gráficos
-import java.awt.event.*; // Importa classes para tratamento de eventos
-import java.util.List; // Importa a classe List do Java
+import java.awt.BorderLayout; // Importa componentes da biblioteca Swing para criar a GUI
+import java.awt.GridLayout; // Importa a borda vazia
+import java.util.List; // Importa classes de layout e componentes gráficos
+
+import javax.swing.BorderFactory; // Importa classes para tratamento de eventos
+import javax.swing.DefaultListModel; // Importa a classe List do Java
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.border.EmptyBorder;
 
 // Classe que representa a interface gráfica do usuário para o Peer
 public class PeerGUI extends JFrame implements PeerGUIListener {
@@ -148,16 +161,25 @@ public class PeerGUI extends JFrame implements PeerGUIListener {
 
     // Método para exibir mensagens de uma conversa
     private void exibirMensagens(String idPeer) {
-        List<String> mensagens = peer.getMensagens(idPeer); // Obtém mensagens da conversa
-        StringBuilder sb = new StringBuilder(); // Cria um StringBuilder para compor as mensagens
+    List<String> mensagens = peer.getMensagens(idPeer); // Obtém mensagens da conversa
+    StringBuilder sb = new StringBuilder(); // Cria um StringBuilder para compor as mensagens
+    String meuId = peer.getIdPeer(); // Obtém o ID do próprio peer para verificar autor da mensagem
+    
+        for (int i = 0; i < mensagens.size(); i += 2) {
+        String remetente = mensagens.get(i);
+        String conteudo = mensagens.get(i + 1);
         
-        for (int i = 0; i < mensagens.size(); i+=2) {
-            sb.append(mensagens.get(i) + ": ");
-            sb.append(mensagens.get(i+1)).append("\n");
+        if (remetente.equals(meuId)) {
+            sb.append(" ".repeat(40)); // Adiciona espaço para alinhamento à direita
+            sb.append("Eu: ").append(conteudo).append("\n"); // Exibe a mensagem com rótulo "Eu"
+        } else {
+            sb.append(remetente).append(": ").append(conteudo).append("\n"); // Alinhamento padrão para mensagens recebidas
         }
-        textAreaConversa.setText(sb.toString()); // Atualiza a área de texto com as mensagens
-        textAreaConversa.setForeground(getForeground());
     }
+    
+    textAreaConversa.setText(sb.toString()); // Atualiza a área de texto com as mensagens formatadas
+}
+
 
     // Método chamado quando uma nova mensagem é recebida
     @Override
