@@ -42,7 +42,7 @@ Para compilar:
 Para correr:
   java -cp bin main.java.Peer
 Para limpar o /bin:
-  rm -rf bin/*
+  rm -rf bin/\*
 
 -**Adicionando Destinatários**
 Para que a comunicação funcione, certifique-se de que outros peers (destinatários) 
