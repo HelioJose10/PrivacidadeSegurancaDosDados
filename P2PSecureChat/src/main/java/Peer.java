@@ -8,13 +8,17 @@ import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -100,7 +104,7 @@ public class Peer {
      */
     public void iniciar() throws IOException {
         ServerSocket serverSocket = new ServerSocket(porta);
-        System.out.println("\nPeer iniciado na porta " + porta);
+        Logger.log("Peer iniciado na porta " + porta);
         
         new Thread(() -> {
             while (true) {
@@ -119,6 +123,7 @@ public class Peer {
      * Envia uma mensagem criptografada para o Peer destinatário especificado.
      * Utiliza Diffie-Hellman para criptografar a chave simétrica (AES),
      * e criptografia simétrica para criptografar a mensagem.
+     * Inclui verificação de integridade usando SHA-256.
      *
      * @param idDestinatario ID do Peer destinatário
      * @param mensagem Mensagem a ser enviada
@@ -129,17 +134,18 @@ public class Peer {
             try (Socket socket = new Socket(peerAddress.getHostName(), peerAddress.getPort());
                  PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
 
-                if(chavesSimetricas.get(idDestinatario) == null){ // Se não tivermos uma chave simetrica com este Peer
+                if (chavesSimetricas.get(idDestinatario) == null) { // Se não tivermos uma chave simétrica com este Peer
 
                     // Obtém a chave pública do destinatário
                     PublicKey chavePublicaDestinatario = chavesPublicasConhecidas.get(idDestinatario);
                     if (chavePublicaDestinatario != null) {
                         applyDiffieHellman(idDestinatario, chavePublicaDestinatario);
+                    } else {
+                        System.out.println("\nChave pública do destinatário não encontrada.");
+                        return;
                     }
-                    else
-                        System.out.println("Chave pública do destinatário não encontrada.");            
                 }
-                
+
                 SecretKeySpec aesKey = chavesSimetricas.get(idDestinatario);
 
                 // Inicializa a cifra para AES
@@ -149,18 +155,30 @@ public class Peer {
                 // Criptografa a mensagem usando a chave simétrica
                 byte[] mensagemCriptografada = criptografarMensagem(mensagem, aesKey);
 
-                // Estrutura da mensagem a ser enviada: idRemetente|mensagemCriptografada
-                out.println(idPeer + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada));
+                // Calcula o hash da mensagem
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                byte[] hash = digest.digest(mensagem.getBytes(StandardCharsets.UTF_8));
+
+                // Codifica o hash em Base64 para envio
+                String hashBase64 = Base64.getEncoder().encodeToString(hash);
+
+
+                // Alteração manual para simular corrupção
+                //hashBase64 = hashBase64.substring(1) + "x"; // Modifica o hash
+                System.out.println("\n Hash enviado (Base64): " + hashBase64);
+
+                // Estrutura da mensagem a ser enviada: idRemetente|mensagemCriptografada|hash
+                out.println(idPeer + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada) + "|" + hashBase64);
 
                 // Armazena a mensagem localmente e notifica a GUI
                 armazenarMensagem(idDestinatario, idPeer, mensagem);
-                System.out.println("Mensagem enviada para " + idDestinatario + ": " + mensagem);
-                
+                Logger.log("Mensagem enviada para " + idDestinatario + ": " + mensagem);
+
             } catch (Exception e) {
                 e.printStackTrace(); // Imprime a pilha de erros em caso de exceção
             }
         } else {
-            System.out.println("Peer destinatário não encontrado."); // Caso o destinatário não esteja na DHT
+            System.out.println("\nPeer destinatário não encontrado."); // Caso o destinatário não esteja na DHT
         }
     }
 
@@ -172,7 +190,7 @@ public class Peer {
      */
     public void registrarPeer(String idPeer, InetSocketAddress endereco) {
         dht.put(idPeer, endereco); // Adiciona ou atualiza a entrada na DHT
-        System.out.println("\nPeer registrado: " + idPeer + " -> " + endereco);
+        Logger.log("Peer registrado: " + idPeer + " -> " + endereco);
     }
 
     /**
@@ -273,6 +291,7 @@ public class Peer {
 
     /**
      * Método para receber e processar mensagens de um peer remoto.
+     * Inclui verificação de integridade usando SHA-256.
      *
      * @param socket Socket representando a conexão com o peer remoto
      */
@@ -282,35 +301,51 @@ public class Peer {
             while ((mensagemCriptografada = in.readLine()) != null) {
                 // Divide a mensagem recebida em partes usando o delimitador "|"
                 String[] partes = mensagemCriptografada.split("\\|");
-                
-                // Verifica se a mensagem está no formato esperado (2 partes)
-                if (partes.length != 2) {
-                    System.out.println("Formato de mensagem inválido, partes: " + partes.length);
+
+                // Verifica se a mensagem está no formato esperado (3 partes)
+                if (partes.length != 3) {
+                    System.out.println("\nFormato de mensagem inválido, partes: " + partes.length);
                     continue; // Pula para a próxima iteração do loop
                 }
-                
+
                 // Extrai o ID do remetente da primeira parte da mensagem
                 String idRemetente = partes[0];
                 PublicKey chaveRemetente = chavesPublicasConhecidas.get(idRemetente);
 
-                if(chavesSimetricas.get(idRemetente) == null) { //Verifica se NAO tem uma chave simetrica guardada para este user
+                if (chavesSimetricas.get(idRemetente) == null) { // Verifica se NÃO tem uma chave simétrica guardada para este user
                     applyDiffieHellman(idRemetente, chaveRemetente);
                 }
 
                 // Decodifica a mensagem criptografada da segunda parte da mensagem usando Base64
                 byte[] mensagemDecodificada = Base64.getDecoder().decode(partes[1]);
 
-                // Descriptografa a chave simétrica utilizando a chave privada do Peer
+                // Obtém o hash recebido (terceira parte)
+                String hashRecebido = partes[2];
+
+                // Descriptografa a mensagem utilizando a chave simétrica obtida
                 SecretKey chaveSimetrica = chavesSimetricas.get(idRemetente);
+                String mensagem = descriptografarMensagem(mensagemDecodificada, chaveSimetrica);
+
+                // Calcula o hash da mensagem descriptografada
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                byte[] hashCalculado = digest.digest(mensagem.getBytes(StandardCharsets.UTF_8));
+                String hashCalculadoBase64 = Base64.getEncoder().encodeToString(hashCalculado);
+
+                // Verifica a integridade comparando os hashes
+                if (!hashRecebido.equals(hashCalculadoBase64)) {
+                    Logger.log("Falha na integridade da mensagem recebida!");
+                    continue;
+                }
 
                 // Exibe a mensagem recebida no console
-                System.out.println("\nMensagem recebida de " + idRemetente + ": " + mensagemDecodificada);
-                
-                // Descriptografa a mensagem utilizando a chave simétrica obtida
-                String mensagem = descriptografarMensagem(mensagemDecodificada, chaveSimetrica);
-                
+                Logger.log("Mensagem recebida de " + idRemetente + ": " + mensagem);
+
                 // Armazena a mensagem recebida no objeto Peer para que possa ser acessada posteriormente
-                armazenarMensagem(idRemetente ,idRemetente, mensagem);
+                armazenarMensagem(idRemetente, idRemetente, mensagem);
+
+                System.out.println("\nHash recebido (Base64): " + hashRecebido);
+                System.out.println("\nHash calculado (Base64): " + hashCalculadoBase64);
+
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -369,6 +404,15 @@ public class Peer {
         return chavePrivada;
     }
 
+    public class Logger {
+        private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    
+        public static void log(String message) {
+            String timestamp = LocalDateTime.now().format(formatter);
+            System.out.println("[" + timestamp + "] " + message);
+        }
+    }
+
     /**
      * Método main para inicializar e executar múltiplos Peers.
      * Cada Peer é iniciado em uma porta diferente, suas chaves públicas são armazenadas entre eles,
@@ -403,6 +447,7 @@ public class Peer {
             peer2.registrarPeer(peer3.getIdPeer(), new InetSocketAddress("localhost", 8083));
             peer3.registrarPeer(peer1.getIdPeer(), new InetSocketAddress("localhost", 8081));
             peer3.registrarPeer(peer2.getIdPeer(), new InetSocketAddress("localhost", 8082));
+            System.out.println("\n");
 
             // Iniciar a GUI para peer1
             SwingUtilities.invokeLater(() -> {
