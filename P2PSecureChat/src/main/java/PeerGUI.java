@@ -16,16 +16,21 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
+import java.awt.Dimension;
 
 // Classe que representa a interface gráfica do usuário para o Peer
 public class PeerGUI extends JFrame implements PeerGUIListener {
     private Peer peer; // Referência ao objeto Peer, que contém a lógica do aplicativo
     private JTextArea textAreaConversa; // Área de texto para exibir mensagens da conversa
     private JComboBox<String> comboBoxDestinatario; // ComboBox para selecionar o destinatário
+    private JList<String> peerList; //JList para criar grupos
+    private DefaultListModel<String> listModel;
     private JTextField textFieldMensagem; // Campo de texto para digitar a mensagem
+    private JTextField textFieldGroup; // Campo de texto para nome do grupo
     private DefaultListModel<String> listModelConversas; // Modelo da lista para gerenciar as conversas
     private JList<String> listConversas; // Lista que exibe as conversas disponíveis
 
@@ -53,6 +58,21 @@ public class PeerGUI extends JFrame implements PeerGUIListener {
         JPanel panelTopo = new JPanel(new BorderLayout(5, 5)); // Painel com layout de borda
         panel.add(panelTopo, BorderLayout.NORTH); // Adiciona o painel ao topo do painel principal
 
+        // Painel superior para seleção de destinatário e entrada de mensagem
+        JPanel panelBot = new JPanel(new BorderLayout(5, 5)); // Painel com layout de borda
+        panel.add(panelBot, BorderLayout.SOUTH); // Adiciona o painel ao topo do painel principal
+
+        // Painel com nomes para criar grupos
+        listModel = new DefaultListModel<>();
+        peerList = new JList<>(listModel);
+        JScrollPane scrollPane = new JScrollPane(peerList);
+        scrollPane.setPreferredSize(new Dimension(100, 30)); // Limit size of the JScrollPane
+        panelBot.add(scrollPane, BorderLayout.WEST); // Adiciona o campo ao painel inferior
+
+        // Campo de texto para o nome do grupo
+        textFieldGroup = new JTextField("Nome do Grupo"); // Inicializa o campo de texto
+        panelBot.add(textFieldGroup, BorderLayout.CENTER); // Adiciona o campo ao painel superior
+        
         // ComboBox para selecionar o destinatário
         comboBoxDestinatario = new JComboBox<>(); // Inicializa o ComboBox
         atualizarDestinatarios(); // Atualiza a lista de destinatários disponíveis
@@ -65,6 +85,10 @@ public class PeerGUI extends JFrame implements PeerGUIListener {
         // Botão para enviar a mensagem
         JButton btnEnviar = new JButton("Enviar"); // Cria o botão de enviar
         panelTopo.add(btnEnviar, BorderLayout.EAST); // Adiciona o botão ao painel superior
+
+        // Botão para criar um grupo
+        JButton btnGroup = new JButton("Criar Grupo"); // Cria o botão de criar grupo
+        panelBot.add(btnGroup, BorderLayout.EAST); // Adiciona o botão ao painel superior
 
         // Painel central para exibir conversas e mensagens
         JPanel panelCentro = new JPanel(new GridLayout(1, 2, 10, 10)); // Painel com grid layout
@@ -104,10 +128,12 @@ public class PeerGUI extends JFrame implements PeerGUIListener {
     private void atualizarDestinatarios() {
         SwingUtilities.invokeLater(() -> { // Garante que a atualização ocorra na thread da GUI
             comboBoxDestinatario.removeAllItems(); // Remove todos os itens atuais
+            listModel.clear();
             // Adiciona todos os peers conhecidos, exceto a si mesmo
             for (String idPeer : peer.dht.keySet()) {
                 if (!idPeer.equals(peer.getIdPeer())) {
-                    comboBoxDestinatario.addItem(idPeer); // Adiciona o peer ao ComboBox
+                    comboBoxDestinatario.addItem(idPeer); // Adiciona o peer ao ComboBox  
+                    listModel.addElement(idPeer);
                 }
             }
         });
