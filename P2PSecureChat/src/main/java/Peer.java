@@ -224,7 +224,7 @@ public class Peer {
                 System.out.println("\n Hash enviado (Base64): " + hashBase64);
 
                 // Estrutura da mensagem a ser enviada: idRemetente|mensagemCriptografada|hash
-                out.println("grupo" + "|" + idGrupo + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada) + "|" + hashBase64);
+                out.println(idGrupo + "|" + idPeer + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada) + "|" + hashBase64);
 
                 // Armazena a mensagem localmente e notifica a GUI
                 armazenarMensagem(idGrupo, idPeer, mensagem);
