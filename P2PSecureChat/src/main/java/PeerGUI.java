@@ -1,6 +1,3 @@
-// Definição do pacote principal onde a classe PeerGUI está localizada
-package main.java;
-
 import java.awt.BorderLayout; // Importa componentes da biblioteca Swing para criar a GUI
 import java.awt.GridLayout; // Importa a borda vazia
 import java.util.List; // Importa classes de layout e componentes gráficos

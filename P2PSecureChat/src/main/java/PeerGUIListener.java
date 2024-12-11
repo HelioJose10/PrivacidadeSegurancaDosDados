@@ -1,6 +1,3 @@
-// Definição do pacote principal onde a interface PeerGUIListener está localizada
-package main.java;
-
 /**
  * Interface PeerGUIListener.
  * Esta interface é utilizada para notificar mudanças no estado de mensagens
