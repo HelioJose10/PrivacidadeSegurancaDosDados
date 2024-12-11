@@ -22,6 +22,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -170,11 +171,64 @@ public class Peer {
                 System.out.println("\n Hash enviado (Base64): " + hashBase64);
 
                 // Estrutura da mensagem a ser enviada: idRemetente|mensagemCriptografada|hash
-                out.println(idPeer + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada) + "|" + hashBase64);
+                out.println("" + "|" + idPeer + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada) + "|" + hashBase64);
 
                 // Armazena a mensagem localmente e notifica a GUI
                 armazenarMensagem(idDestinatario, idPeer, mensagem);
                 Logger.log("Mensagem enviada para " + idDestinatario + ": " + mensagem);
+
+            } catch (Exception e) {
+                e.printStackTrace(); // Imprime a pilha de erros em caso de exceção
+            }
+        } else {
+            System.out.println("\nPeer destinatário não encontrado."); // Caso o destinatário não esteja na DHT
+        }
+    }
+
+    public void enviarMensagemGrupo(String idGrupo, String mensagem) {
+        InetSocketAddress peerAddress = dht.get(idGrupo); // Obtém o endereço do destinatário da DHT
+        if (peerAddress != null) { // Verifica se o destinatário está registrado na DHT
+            try (Socket socket = new Socket(peerAddress.getHostName(), peerAddress.getPort());
+                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
+
+                if (chavesSimetricas.get(idGrupo) == null) { // Se não tivermos uma chave simétrica com este Peer
+
+                    // Obtém a chave pública do destinatário
+                    PublicKey chavePublicaDestinatario = chavesPublicasConhecidas.get(idGrupo);
+                    if (chavePublicaDestinatario != null) {
+                        applyDiffieHellman(idGrupo, chavePublicaDestinatario);
+                    } else {
+                        System.out.println("\nChave pública do destinatário não encontrada.");
+                        return;
+                    }
+                }
+
+                SecretKeySpec aesKey = chavesSimetricas.get(idGrupo);
+
+                // Inicializa a cifra para AES
+                Cipher cipher = Cipher.getInstance("AES");
+                cipher.init(Cipher.ENCRYPT_MODE, aesKey);
+
+                // Criptografa a mensagem usando a chave simétrica
+                byte[] mensagemCriptografada = criptografarMensagem(mensagem, aesKey);
+
+                // Calcula o hash da mensagem
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                byte[] hash = digest.digest(mensagem.getBytes(StandardCharsets.UTF_8));
+
+                // Codifica o hash em Base64 para envio
+                String hashBase64 = Base64.getEncoder().encodeToString(hash);
+
+                // Alteração manual para simular corrupção
+                //hashBase64 = hashBase64.substring(1) + "x"; // Modifica o hash
+                System.out.println("\n Hash enviado (Base64): " + hashBase64);
+
+                // Estrutura da mensagem a ser enviada: idRemetente|mensagemCriptografada|hash
+                out.println("grupo" + "|" + idGrupo + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada) + "|" + hashBase64);
+
+                // Armazena a mensagem localmente e notifica a GUI
+                armazenarMensagem(idGrupo, idPeer, mensagem);
+                Logger.log("Mensagem enviada para o grupo" + idGrupo + ": " + mensagem);
 
             } catch (Exception e) {
                 e.printStackTrace(); // Imprime a pilha de erros em caso de exceção
@@ -317,15 +371,18 @@ public class Peer {
             while ((mensagemCriptografada = in.readLine()) != null) {
                 // Divide a mensagem recebida em partes usando o delimitador "|"
                 String[] partes = mensagemCriptografada.split("\\|");
+                System.out.println(Arrays.toString(partes));
+
 
                 // Verifica se a mensagem está no formato esperado (3 partes)
-                if (partes.length != 3) {
+                if (partes.length != 4) {
                     System.out.println("\nFormato de mensagem inválido, partes: " + partes.length);
                     continue; // Pula para a próxima iteração do loop
                 }
 
                 // Extrai o ID do remetente da primeira parte da mensagem
-                String idRemetente = partes[0];
+                String grupoFlag = partes[0];
+                String idRemetente = partes[1];
                 PublicKey chaveRemetente = chavesPublicasConhecidas.get(idRemetente);
 
                 if (chavesSimetricas.get(idRemetente) == null) { // Verifica se NÃO tem uma chave simétrica guardada para este user
@@ -333,10 +390,10 @@ public class Peer {
                 }
 
                 // Decodifica a mensagem criptografada da segunda parte da mensagem usando Base64
-                byte[] mensagemDecodificada = Base64.getDecoder().decode(partes[1]);
+                byte[] mensagemDecodificada = Base64.getDecoder().decode(partes[2]);
 
                 // Obtém o hash recebido (terceira parte)
-                String hashRecebido = partes[2];
+                String hashRecebido = partes[3];
 
                 // Descriptografa a mensagem utilizando a chave simétrica obtida
                 SecretKey chaveSimetrica = chavesSimetricas.get(idRemetente);
@@ -390,6 +447,28 @@ public class Peer {
         // Gerar uma chave a partir do DIffie-Hellman secret e guarda no Peer
         SecretKeySpec aesKey = new SecretKeySpec(sharedSecret, 0, 16, "AES"); // Use 16 bytes for AES-128
         chavesSimetricas.put(idPeer, aesKey);
+    }
+
+
+    public void applyGroupDiffieHellman(String idGrupo, List<PublicKey> publicKeysPeers) throws NoSuchAlgorithmException, InvalidKeyException {
+        try {
+            KeyAgreement keyAgree = KeyAgreement.getInstance("DH");
+            keyAgree.init(chavePrivada);
+            // Realizar a fase de chaveamento com a chave pública de cada peer
+            for (PublicKey peerPublicKey : publicKeysPeers) {
+                if (!peerPublicKey.equals(chavePublica)) {
+                    keyAgree.doPhase(peerPublicKey, true); // Fase com a chave pública do peer
+                }
+                byte[] sharedSecret = keyAgree.generateSecret();
+                
+                // Derivar a chave AES a partir do segredo compartilhado
+                SecretKeySpec aesKey = new SecretKeySpec(sharedSecret, 0, 16, "AES"); // Usar os primeiros 128 bits como chave AES
+                chavesSimetricas.put(idGrupo, aesKey); // Armazenar a chave simétrica para este grupo
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new InvalidKeyException("Erro ao realizar Diffie-Hellman para o grupo.");
+        }
     }
 
 
