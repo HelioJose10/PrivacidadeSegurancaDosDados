@@ -1,6 +1,3 @@
-// Definição do pacote principal onde a classe Peer está localizada
-package main.java;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -17,10 +14,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -28,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+
 import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
@@ -281,18 +275,6 @@ public class Peer {
      * @param mensagem Mensagem a ser armazenada
      */
     public void armazenarMensagem(String idDestinatario, String idRemetente, String mensagem) {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = "INSERT INTO messages (sender_id, receiver_id, message) VALUES (?, ?, ?)";
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, idRemetente);
-                stmt.setString(2, idDestinatario);
-                stmt.setString(3, mensagem);
-                stmt.executeUpdate();
-            }
-            System.out.println("Mensagem armazenada no banco de dados.");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
     
         // Armazenamento na memória local
         conversas.computeIfAbsent(idDestinatario, k -> new ArrayList<>()).add(idRemetente);
@@ -498,25 +480,6 @@ public class Peer {
     public PrivateKey getChavePrivada() {
         return chavePrivada;
     }
-
-    public List<String> recuperarMensagens(String idRemetente, String idDestinatario) {
-    List<String> mensagens = new ArrayList<>();
-    try (Connection conn = DatabaseConnection.getConnection()) {
-        String sql = "SELECT message, timestamp FROM messages WHERE sender_id = ? AND receiver_id = ? ORDER BY timestamp ASC";
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, idRemetente);
-            stmt.setString(2, idDestinatario);
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    mensagens.add(rs.getString("message") + " [" + rs.getTimestamp("timestamp") + "]");
-                }
-            }
-        }
-    } catch (SQLException e) {
-        e.printStackTrace();
-    }
-    return mensagens;
-}
 
     /**
      * Método main para inicializar e executar múltiplos Peers.

@@ -14,17 +14,6 @@
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
-    <dependencies>
-        <!-- Dependência do driver PostgreSQL -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>42.6.0</version>
-        </dependency>
-
-        <!-- Outras dependências necessárias (adicione aqui, se necessário) -->
-    </dependencies>
-
     <build>
         <plugins>
             <!-- Plugin para compilar o código -->
