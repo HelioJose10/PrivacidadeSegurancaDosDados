@@ -162,7 +162,8 @@ public class Peer {
 
                 // Alteração manual para simular corrupção
                 //hashBase64 = hashBase64.substring(1) + "x"; // Modifica o hash
-                System.out.println("\n Hash enviado (Base64): " + hashBase64);
+                System.out.println("\n------------------------------Hash------------------------------");
+                System.out.println("\nHash enviado (Base64): " + hashBase64);
 
                 // Estrutura da mensagem a ser enviada: idRemetente|mensagemCriptografada|hash
                 out.println("" + "|" + idPeer + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada) + "|" + hashBase64);
@@ -215,7 +216,7 @@ public class Peer {
 
                 // Alteração manual para simular corrupção
                 //hashBase64 = hashBase64.substring(1) + "x"; // Modifica o hash
-                System.out.println("\n Hash enviado (Base64): " + hashBase64);
+                System.out.println("\nHash enviado (Base64): " + hashBase64);
 
                 // Estrutura da mensagem a ser enviada: idRemetente|mensagemCriptografada|hash
                 out.println(idGrupo + "|" + idPeer + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada) + "|" + hashBase64);
@@ -393,13 +394,13 @@ public class Peer {
                 }
 
                 // Exibe a mensagem recebida no console
-                Logger.log("Mensagem recebida de " + idRemetente + ": " + mensagem);
+                Logger.log("\nMensagem recebida de " + idRemetente + ": " + mensagem);
 
                 // Armazena a mensagem recebida no objeto Peer para que possa ser acessada posteriormente
                 armazenarMensagem(idRemetente, idRemetente, mensagem);
 
                 System.out.println("\nHash recebido (Base64): " + hashRecebido);
-                System.out.println("\nHash calculado (Base64): " + hashCalculadoBase64);
+                System.out.println("Hash calculado (Base64): " + hashCalculadoBase64);
 
             }
         } catch (Exception e) {
@@ -490,6 +491,7 @@ public class Peer {
      */
     public static void main(String[] args) {
         try {
+            System.out.println("\n-----Peers Iniciados-----");
             // Inicializar três Peers em portas diferentes
             Peer peer1 = new Peer(8081, "peer1");
             peer1.iniciar();
@@ -500,6 +502,7 @@ public class Peer {
             Peer peer3 = new Peer(8083, "peer3");
             peer3.iniciar();
 
+            System.out.println("\n--------------------Endereços--------------------");
             // Armazenar as chaves públicas entre os Peers para permitir comunicação segura
             peer1.armazenarChavePublica(peer2.getIdPeer(), peer2.getChavePublica());
             peer1.armazenarChavePublica(peer3.getIdPeer(), peer3.getChavePublica());
