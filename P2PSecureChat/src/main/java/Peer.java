@@ -30,6 +30,7 @@ import javax.swing.SwingUtilities;
 
 
 
+
 /**
  * Classe Peer que representa um nó em uma rede P2P (Peer-to-Peer).
  * Cada Peer possui uma ID única, pares de chaves pública/privada para criptografia,
@@ -130,9 +131,8 @@ public class Peer {
         if (peerAddress != null) { // Verifica se o destinatário está registrado na DHT
             try (Socket socket = new Socket(peerAddress.getHostName(), peerAddress.getPort());
                  PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
-
+    
                 if (chavesSimetricas.get(idDestinatario) == null) { // Se não tivermos uma chave simétrica com este Peer
-
                     // Obtém a chave pública do destinatário
                     PublicKey chavePublicaDestinatario = chavesPublicasConhecidas.get(idDestinatario);
                     if (chavePublicaDestinatario != null) {
@@ -142,36 +142,48 @@ public class Peer {
                         return;
                     }
                 }
-
+    
                 SecretKeySpec aesKey = chavesSimetricas.get(idDestinatario);
-
+    
                 // Inicializa a cifra para AES
                 Cipher cipher = Cipher.getInstance("AES");
                 cipher.init(Cipher.ENCRYPT_MODE, aesKey);
-
+    
                 // Criptografa a mensagem usando a chave simétrica
                 byte[] mensagemCriptografada = criptografarMensagem(mensagem, aesKey);
-
+    
                 // Calcula o hash da mensagem
                 MessageDigest digest = MessageDigest.getInstance("SHA-256");
                 byte[] hash = digest.digest(mensagem.getBytes(StandardCharsets.UTF_8));
-
+    
                 // Codifica o hash em Base64 para envio
                 String hashBase64 = Base64.getEncoder().encodeToString(hash);
-
-
-                // Alteração manual para simular corrupção
-                //hashBase64 = hashBase64.substring(1) + "x"; // Modifica o hash
+    
                 System.out.println("\n------------------------------Hash------------------------------");
                 System.out.println("\nHash enviado (Base64): " + hashBase64);
-
+    
                 // Estrutura da mensagem a ser enviada: idRemetente|mensagemCriptografada|hash
                 out.println("" + "|" + idPeer + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada) + "|" + hashBase64);
-
+    
                 // Armazena a mensagem localmente e notifica a GUI
                 armazenarMensagem(idDestinatario, idPeer, mensagem);
                 Logger.log("Mensagem enviada para " + idDestinatario + ": " + mensagem);
-
+    
+                // --- Novo Código: Replicação para Armazenamento Externo ---
+                try {
+                    byte[] encryptedData = mensagemCriptografada; // Dados já criptografados
+                    String messageId = idPeer + "_" + idDestinatario + "_" + System.currentTimeMillis(); // ID único para a mensagem
+    
+                    // Envia a mensagem criptografada para armazenamento externo
+                    StorageService storageService = new StorageService(); // Instanciar o serviço de armazenamento
+                    storageService.uploadMessage(messageId, encryptedData);
+    
+                    Logger.log("Mensagem replicada com sucesso para armazenamento externo.");
+                } catch (Exception e) {
+                    Logger.log("Erro ao replicar mensagem no armazenamento externo: " + e.getMessage());
+                }
+                // --- Fim do Novo Código ---
+    
             } catch (Exception e) {
                 e.printStackTrace(); // Imprime a pilha de erros em caso de exceção
             }
@@ -179,7 +191,7 @@ public class Peer {
             System.out.println("\nPeer destinatário não encontrado."); // Caso o destinatário não esteja na DHT
         }
     }
-
+    
     public void enviarMensagemGrupo(String idGrupo, String mensagem) {
         InetSocketAddress peerAddress = dht.get(idGrupo); // Obtém o endereço do destinatário da DHT
         if (peerAddress != null) { // Verifica se o destinatário está registrado na DHT
