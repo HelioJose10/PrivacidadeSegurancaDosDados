@@ -1,0 +1,1 @@
+P2PSecureChat/target/*.jar filter=lfs diff=lfs merge=lfs -text
