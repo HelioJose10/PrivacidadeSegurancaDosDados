@@ -195,18 +195,9 @@ public class Peer {
             System.out.println("\nPeer destinatário não encontrado."); // Caso o destinatário não esteja na DHT
         }
     }
-<<<<<<< HEAD
 
     public void enviarMensagemGrupo(String idGrupo, String mensagem) throws GeneralSecurityException {
         boolean isFirstMessage = false;
-=======
-    
-    public void enviarMensagemGrupo(String idGrupo, String mensagem) {
-        InetSocketAddress peerAddress = dht.get(idGrupo); // Obtém o endereço do destinatário da DHT
-        if (peerAddress != null) { // Verifica se o destinatário está registrado na DHT
-            try (Socket socket = new Socket(peerAddress.getHostName(), peerAddress.getPort());
-                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
->>>>>>> 0e84a711dab486397429c95508d8dc46c875e03c
 
         if (chavesSimetricas.get(idGrupo) == null) { // Se não tivermos uma chave simétrica com este Grupo
 
@@ -215,41 +206,8 @@ public class Peer {
             // Calcula o DiffieHellman conjunto
             String[] peers = mensagem.split("\\|");
 
-<<<<<<< HEAD
             addGroup(idGrupo, peers);
             //applyGroupDiffieHellman(idGrupo, peers); ESTA A DAR ERRO
-=======
-                // Inicializa a cifra para AES
-                Cipher cipher = Cipher.getInstance("AES");
-                cipher.init(Cipher.ENCRYPT_MODE, aesKey);
-
-                // Criptografa a mensagem usando a chave simétrica
-                byte[] mensagemCriptografada = criptografarMensagem(mensagem, aesKey);
-
-                // Calcula o hash da mensagem
-                MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                byte[] hash = digest.digest(mensagem.getBytes(StandardCharsets.UTF_8));
-
-                // Codifica o hash em Base64 para envio
-                String hashBase64 = Base64.getEncoder().encodeToString(hash);
-
-                // Alteração manual para simular corrupção
-                //hashBase64 = hashBase64.substring(1) + "x"; // Modifica o hash
-                System.out.println("\nHash enviado (Base64): " + hashBase64);
-
-                // Estrutura da mensagem a ser enviada: idRemetente|mensagemCriptografada|hash
-                out.println(idGrupo + "|" + idPeer + "|" + Base64.getEncoder().encodeToString(mensagemCriptografada) + "|" + hashBase64);
-
-                // Armazena a mensagem localmente e notifica a GUI
-                armazenarMensagem(idGrupo, idPeer, mensagem);
-                Logger.log("Mensagem enviada para o grupo" + idGrupo + ": " + mensagem);
-
-            } catch (Exception e) {
-                e.printStackTrace(); // Imprime a pilha de erros em caso de exceção
-            }
-        } else {
-            System.out.println("\nPeer destinatário não encontrado."); // Caso o destinatário não esteja na DHT
->>>>>>> 0e84a711dab486397429c95508d8dc46c875e03c
         }
 
         SecretKeySpec aesKey = chavesSimetricas.get(idGrupo);
@@ -490,38 +448,6 @@ public class Peer {
                     System.out.println("\nHash calculado (Base64): " + hashCalculadoBase64);
                 }
 
-<<<<<<< HEAD
-=======
-                // Decodifica a mensagem criptografada da segunda parte da mensagem usando Base64
-                byte[] mensagemDecodificada = Base64.getDecoder().decode(partes[2]);
-
-                // Obtém o hash recebido (terceira parte)
-                String hashRecebido = partes[3];
-
-                // Descriptografa a mensagem utilizando a chave simétrica obtida
-                SecretKey chaveSimetrica = chavesSimetricas.get(idRemetente);
-                String mensagem = descriptografarMensagem(mensagemDecodificada, chaveSimetrica);
-
-                // Calcula o hash da mensagem descriptografada
-                MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                byte[] hashCalculado = digest.digest(mensagem.getBytes(StandardCharsets.UTF_8));
-                String hashCalculadoBase64 = Base64.getEncoder().encodeToString(hashCalculado);
-
-                // Verifica a integridade comparando os hashes
-                if (!hashRecebido.equals(hashCalculadoBase64)) {
-                    Logger.log("Falha na integridade da mensagem recebida!");
-                    continue;
-                }
-
-                // Exibe a mensagem recebida no console
-                Logger.log("\nMensagem recebida de " + idRemetente + ": " + mensagem);
-
-                // Armazena a mensagem recebida no objeto Peer para que possa ser acessada posteriormente
-                armazenarMensagem(idRemetente, idRemetente, mensagem);
-
-                System.out.println("\nHash recebido (Base64): " + hashRecebido);
-                System.out.println("Hash calculado (Base64): " + hashCalculadoBase64);
->>>>>>> 0e84a711dab486397429c95508d8dc46c875e03c
 
             }
         } catch (Exception e) {
