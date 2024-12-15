@@ -1,5 +1,6 @@
 import java.awt.BorderLayout; // Importa componentes da biblioteca Swing para criar a GUI
 import java.awt.GridLayout; // Importa a borda vazia
+import java.security.GeneralSecurityException;
 import java.util.List; // Importa classes de layout e componentes gráficos
 
 import javax.swing.BorderFactory; // Importa classes para tratamento de eventos
@@ -13,7 +14,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
-import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
@@ -109,12 +109,27 @@ public class PeerGUI extends JFrame implements PeerGUIListener {
         atualizarListaConversas();
 
         // Listeners para eventos
-        btnEnviar.addActionListener(e -> enviarMensagem()); // Ação ao clicar no botão de enviar
+        btnEnviar.addActionListener(e -> {
+            try {
+                enviarMensagem();
+            } catch (GeneralSecurityException e1) {
+                e1.printStackTrace();
+            }
+        }); // Ação ao clicar no botão de enviar
         listConversas.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) { // Verifica se a seleção foi finalizada
                 exibirConversasSelecionada(); // Exibe as mensagens da conversa selecionada
             }
         });
+
+        // Listeners para evento de criar Grupo
+        btnGroup.addActionListener(e -> {
+            try {
+                criarGrupo();
+            } catch (GeneralSecurityException e1) {
+                e1.printStackTrace();
+            }
+        }); // Ação ao clicar no botão de enviar
 
         // Atualiza periodicamente a lista de destinatários a cada 5 segundos
         Timer timer = new Timer(5000, e -> atualizarDestinatarios());
@@ -133,6 +148,9 @@ public class PeerGUI extends JFrame implements PeerGUIListener {
                     listModel.addElement(idPeer);
                 }
             }
+            for(String idGroup : peer.mapGrupos.keySet()) {
+                comboBoxDestinatario.addItem(idGroup); // Adiciona o ID da conversa
+            }
         });
     }
 
@@ -142,13 +160,16 @@ public class PeerGUI extends JFrame implements PeerGUIListener {
             listModelConversas.clear(); // Limpa a lista de conversas
             // Adiciona todos os IDs de conversa ao modelo
             for (String id : peer.conversas.keySet()) {
+                for(String idGroup : peer.mapGrupos.keySet()) {
+                    listModelConversas.addElement(idGroup); // Adiciona o ID da conversa
+                }
                 listModelConversas.addElement(id); // Adiciona o ID da conversa
             }
         });
     }
 
     // Método para enviar mensagem
-    private void enviarMensagem() {
+    private void enviarMensagem() throws GeneralSecurityException {
         // Obtém o destinatário selecionado e a mensagem a ser enviada
         String destinatario = (String) comboBoxDestinatario.getSelectedItem();
         String mensagem = textFieldMensagem.getText().trim(); // Remove espaços em branco
@@ -166,12 +187,45 @@ public class PeerGUI extends JFrame implements PeerGUIListener {
         }
 
         // Envia a mensagem através do peer
-        peer.enviarMensagem(destinatario, mensagem);
+        if(peer.mapGrupos.containsKey(destinatario)) { // se o destinatario for um grupo
+            peer.enviarMensagemGrupo(destinatario, mensagem);
+        }
+        else {
+            peer.enviarMensagem(destinatario, mensagem);
+        }
         textFieldMensagem.setText(""); // Limpa o campo de texto após enviar
 
         // Atualiza a lista de conversas
         atualizarListaConversas();
         exibirMensagens(destinatario); // Exibe as mensagens enviadas
+    }
+
+    private void criarGrupo() throws GeneralSecurityException {
+        // Obtém os Peers selecionados e o nome do grupo
+        List<String> selectedPeers = peerList.getSelectedValuesList(); // Get selected items
+        String nomeGrupo = textFieldGroup.getText().trim(); // Remove espaços em branco
+
+        // Print para debug
+        System.out.println("Selected Peers: " + selectedPeers);
+        System.out.println("Group Name: " + nomeGrupo);
+
+        if (selectedPeers.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Selecione pelo menos um Peer.", "Erro", JOptionPane.ERROR_MESSAGE);
+            return; // Retorna se nenhum Peer foi selecionado
+        }
+
+        // Verifica se o nome
+        if (nomeGrupo.equals("")) {
+            JOptionPane.showMessageDialog(this, "O nome para o grupo não pode ser vazio.", "Erro", JOptionPane.ERROR_MESSAGE);
+            return; // Retorna se o nome do grupo estiver vazio
+        }
+
+        // Envia a mensagem através do peer
+        selectedPeers.add(peer.getIdPeer()); // Adicionamos o proprio ID para fazer parte do grupo
+        peer.enviarMensagemGrupo(nomeGrupo, String.join("|", selectedPeers));
+        textFieldGroup.setText("Nome do Grupo"); // Limpa o campo de texto após enviar
+        // Atualiza a lista de conversas
+        atualizarListaConversas();
     }
 
     // Método para exibir conversas selecionadas
