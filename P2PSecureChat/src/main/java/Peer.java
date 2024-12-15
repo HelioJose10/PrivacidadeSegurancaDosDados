@@ -177,10 +177,7 @@ public class Peer {
                 try {
                     byte[] encryptedData = mensagemCriptografada; // Dados já criptografados
                     String messageId = idPeer + "_" + idDestinatario + "_" + System.currentTimeMillis(); // ID único para a mensagem
-    
-                    // Envia a mensagem criptografada para armazenamento externo
-                    StorageService storageService = new StorageService(); // Instanciar o serviço de armazenamento
-                    storageService.uploadMessage(messageId, encryptedData);
+
     
                     Logger.log("Mensagem replicada com sucesso para armazenamento externo.");
                 } catch (Exception e) {
@@ -411,6 +408,8 @@ public class Peer {
                         byte[] mensagemDecodificada = Base64.getDecoder().decode(partes[2]);
                         mensagem = new String(mensagemDecodificada);
                         String[] peers = mensagem.split("\\|");
+                        addGroup(grupoFlag, peers);
+                        
 
                         //applyGroupDiffieHellman(grupoFlag, peers);
                     }

@@ -1,4 +1,5 @@
 Peer.class
 PeerGUI.class
+EncryptionUtil.class
 Logger.class
 PeerGUIListener.class
