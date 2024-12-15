@@ -35,7 +35,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>main.java.Peer</mainClass> <!-- Altere para a classe principal -->
+                            <mainClass>Peer.java</mainClass> <!-- Altere para a classe principal -->
                         </manifest>
                     </archive>
                 </configuration>
@@ -47,7 +47,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.0.0</version>
                 <configuration>
-                    <mainClass>main.java.Peer</mainClass> <!-- Altere para a classe principal -->
+                    <mainClass>Peer</mainClass> <!-- Altere para a classe principal -->
                 </configuration>
             </plugin>
 
